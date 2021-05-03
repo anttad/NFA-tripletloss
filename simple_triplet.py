@@ -6,6 +6,7 @@ import tensorflow_addons as tfa
 from tensorflow.python.ops import nn
 from tensorflow.python.ops import math_ops
 import argparse
+from tripletloss_nfa import DenseTripletSemiHardLoss
 
 # import tensorflow_datasets as tfds
 from sklearn.utils import shuffle
@@ -33,6 +34,8 @@ parser.add_argument('--log_fold', type=str,
 
 parser.add_argument('--dist_fn', type=str,
         help='Distance function, choose between "cosine", "angular" and "L2"', default="L2")
+parser.add_argument('--loss_type', type=str,
+        help='Loss type, choose between "triplet" and "dense"', default="triplet")
 
 args = parser.parse_args()
 
@@ -195,27 +198,51 @@ model = tf.keras.Sequential([
 
 ])
 
+
+
 # Compile the model
 print("compiling")
-if args.dist_fn == "cosine":
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(0.001),
-        loss=tfa.losses.TripletSemiHardLoss(distance_metric="angular",margin=margin))
+if args.loss_type == "triplet":
+    if args.dist_fn == "cosine":
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(0.001),
+            loss=tfa.losses.TripletSemiHardLoss(distance_metric="angular",margin=margin))
 
-elif args.dist_fn == "L2":
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(0.001),
-        loss=tfa.losses.TripletSemiHardLoss(distance_metric="L2",margin=margin))
+    elif args.dist_fn == "L2":
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(0.001),
+            loss=tfa.losses.TripletSemiHardLoss(distance_metric="L2",margin=margin))
 
-elif args.dist_fn == "angular":
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(0.001),
-        loss=tfa.losses.TripletSemiHardLoss(distance_metric=angular_distance,margin=margin))
-elif args.dist_fn == "sphere":
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(0.001),
-        loss=tfa.losses.TripletSemiHardLoss(distance_metric=spherical_cap_hypothesis,margin=margin))
-  
+    elif args.dist_fn == "angular":
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(0.001),
+            loss=tfa.losses.TripletSemiHardLoss(distance_metric=angular_distance,margin=margin))
+    elif args.dist_fn == "sphere":
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(0.001),
+            loss=tfa.losses.TripletSemiHardLoss(distance_metric=spherical_cap_hypothesis,margin=margin))
+    
+
+elif args.loss_type == "dense":
+    if args.dist_fn == "cosine":
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(0.001),
+            loss=DenseTripletSemiHardLoss()(distance_metric="angular",margin=margin))
+
+    elif args.dist_fn == "L2":
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(0.001),
+            loss=DenseTripletSemiHardLoss(distance_metric="L2",margin=margin))
+
+    elif args.dist_fn == "angular":
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(0.001),
+            loss=DenseTripletSemiHardLoss(distance_metric=angular_distance,margin=margin))
+    elif args.dist_fn == "sphere":
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(0.001),
+            loss=DenseTripletSemiHardLoss(distance_metric=spherical_cap_hypothesis,margin=margin))
+    
 
 print(model.summary())
 # Train the network
