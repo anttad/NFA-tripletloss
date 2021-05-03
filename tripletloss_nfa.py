@@ -1,7 +1,31 @@
 import tensorflow as tf
 from tensorflow_addons.losses import metric_learning
+from tensorflow_addons.utils.keras_utils import LossFunctionWrapper
+from tensorflow_addons.utils.types import FloatTensorLike, TensorLike
+from typeguard import typechecked
+from typing import Optional, Union, Callable
+
+import math as m
 
 
+def _masked_minimum(data, mask, dim=1):
+    """Computes the axis wise minimum over chosen elements.
+    Args:
+      data: 2-D float `Tensor` of shape `[n, m]`.
+      mask: 2-D Boolean `Tensor` of shape `[n, m]`.
+      dim: The dimension over which to compute the minimum.
+    Returns:
+      masked_minimums: N-D `Tensor`.
+        The minimized dimension is of size 1 after the operation.
+    """
+    axis_maximums = tf.math.reduce_max(data, dim, keepdims=True)
+    masked_minimums = (
+        tf.math.reduce_min(
+            tf.math.multiply(data - axis_maximums, mask), dim, keepdims=True
+        )
+        + axis_maximums
+    )
+    return masked_minimums
 
 def _masked_maximum(data, mask, dim=1):
     """Computes the axis wise maximum over chosen elements.
@@ -23,7 +47,7 @@ def _masked_maximum(data, mask, dim=1):
     return masked_maximums
 
 
-def spherical_cap_hypothesis(feature,n_dim=args.n_dim,N_test=1000):
+def spherical_cap_hypothesis(feature,n_dim=3,N_test=1000):
     #r=1
     feature = tf.math.l2_normalize(feature, axis=1)
     eps = tf.keras.backend.epsilon()
@@ -358,7 +382,7 @@ def dense_triplet_semihard_loss(
     #   in semihard, they take all positive pairs except the diagonal.
     num_positives = tf.math.reduce_sum(mask_positives)
 
-    dist_positives = tf.math.truediv(tf.math.reduce_sum(tf.math.multiply(mask_postives,pdist_matrix)), num_positives)
+    dist_positives = tf.math.truediv(tf.math.reduce_sum(tf.math.multiply(mask_positives,pdist_matrix)),tf.math.multiply(m.pi,num_positives))
 
     triplet_loss = tf.math.truediv(
         tf.math.reduce_sum(

@@ -26,11 +26,11 @@ parser.add_argument('--margin', type=float,
 parser.add_argument('--n_dim', type=int,
         help='embedding dimension', default=128)
 parser.add_argument('--model_fold', type=str,
-        help='folder where to save the model', default="/code/models/")
+        help='folder where to save the model', default="./models/")
 parser.add_argument('--emb_fold', type=str,
-        help='folder where to save the model', default="/code/embeddings/")
+        help='folder where to save the model', default="./embeddings/")
 parser.add_argument('--log_fold', type=str,
-        help='folder where to save the model', default="/code/tensorboard/")
+        help='folder where to save the model', default="./tensorboard/")
 
 parser.add_argument('--dist_fn', type=str,
         help='Distance function, choose between "cosine", "angular" and "L2"', default="L2")
@@ -44,7 +44,7 @@ n_dim = args.n_dim
 epoch = args.epoch
 batch_size = args.batch_size
 
-log_dir = os.path.join(args.log_fold,"dist_{}_margin_{}_{}D".format(args.dist_fn,args.margin,n_dim))
+log_dir = os.path.join(args.log_fold,"{}_dist_{}_margin_{}_{}D".format(args.loss_type,args.dist_fn,args.margin,n_dim))
 
 
 def spherical_cap_hypothesis(feature):
@@ -105,10 +105,10 @@ def angular_distance(feature):
     # normalize input
     feature = tf.math.l2_normalize(feature, axis=1)
     eps = tf.keras.backend.epsilon()
-    # create adjaceny matrix of cosine similarity
+    
     # angular_distances = tf.math.acos(tf.matmul(feature, feature, transpose_b=True))
     # print(tf.reduce_mean(tf.math.is_nan(angular_distances)))
-    # input()
+ 
     angular_distances = tf.acos(tf.clip_by_value(tf.matmul(feature, feature, transpose_b=True),-1+eps,1-eps))
 
     # ensure all distances > 1e-16
@@ -254,25 +254,19 @@ print("training")
 tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=50,write_images=True,embeddings_freq=100)
 history = model.fit(
     X_train,y_train,
-    epochs=epoch, batch_size=batch_size, callbacks=[tensorboard_callback])
+    epochs=epoch, batch_size=batch_size, callbacks=[tensorboard_callback], validation_data=(X_test,y_test),validation_freq=20)
 
 # Evaluate the network
 results = model.predict(X_test)
-np.save(os.path.join(args.emb_fold,"test_dist_{}_margin_{}_{}D.npy".format(args.dist_fn,args.margin,n_dim)),results)
+np.save(os.path.join(args.emb_fold,"test_{}_dist_{}_margin_{}_{}D.npy".format(args.loss_type,args.dist_fn,args.margin,n_dim)),results)
 results = model.predict(X_train)
-np.save(os.path.join(args.emb_fold,"train_dist_{}_margin_{}_{}D.npy".format(args.dist_fn,args.margin,n_dim)),results)
+np.save(os.path.join(args.emb_fold,"train_{}_dist_{}_margin_{}_{}D.npy".format(args.loss_type,args.dist_fn,args.margin,n_dim)),results)
 # Save test embeddings for visualization in projector
-np.savetxt("vecs.tsv", results, delimiter='\t')
+
 
 # out_m = io.open('meta.tsv', 'w', encoding='utf-8')
 # for img, labels in tfds.as_numpy(test_dataset):
 #     [out_m.write(str(x) + "\n") for x in labels]
 # out_m.close()
-tf.keras.models.save_model(model,os.path.join(args.model_fold,"dist_{}_margin_{}_{}D.h5".format(args.dist_fn,args.margin,n_dim)))
+tf.keras.models.save_model(model,os.path.join(args.model_fold,"{}_dist_{}_margin_{}_{}D_.h5".format(args.loss_type,args.dist_fn,args.margin,n_dim)))
 
-try:
-  from google.colab import files
-  files.download('vecs.tsv')
-  files.download('meta.tsv')
-except:
-  pass
